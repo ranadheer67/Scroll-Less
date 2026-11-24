@@ -1,0 +1,16 @@
+{
+  "name": "scrollless-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}
