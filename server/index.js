@@ -8,9 +8,33 @@ dotenv.config({ path: fileURLToPath(new URL('.env', import.meta.url)) })
 
 const app = express()
 const port = Number(process.env.PORT) || 3001
+const productionFrontendOrigin = 'https://scroll-less.onrender.com'
+const localFrontendOrigin = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/
 const maxFiles = 10
 const maxFileBytes = 8 * 1024 * 1024
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+app.use((req, res, next) => {
+  const origin = req.get('Origin')
+  const allowedOrigin = origin === productionFrontendOrigin || localFrontendOrigin.test(origin || '')
+  res.vary('Origin')
+
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      res.setHeader('Access-Control-Max-Age', '600')
+    }
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(allowedOrigin || !origin ? 204 : 403)
+  }
+
+  next()
+})
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: maxFiles, fileSize: maxFileBytes, fields: 0 },

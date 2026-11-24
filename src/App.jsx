@@ -4,6 +4,9 @@ import { calculateReclaimedTime, formatDuration } from './timeUtils.js'
 import AnalysisResults from './components/AnalysisResults.jsx'
 import './App.css'
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '')
+const analysisApiUrl = configuredApiUrl ? `${configuredApiUrl}/api/analyze` : '/api/analyze'
+
 function Mark({ small = false }) {
   return <span className={`brand-mark${small ? ' brand-mark-small' : ''}`} aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 3.5v25M8.5 9.5 16 3.5l7.5 6M8.5 22.5 16 28.5l7.5-6" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M3.5 16h25" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round"/></svg></span>
 }
@@ -77,9 +80,25 @@ function UploadPanel({ sampleMode, onUseSample, onExitSample, onAnalysisChange }
     try {
       const body = new FormData()
       files.forEach(({ file }) => body.append('screenshots', file))
-      const response = await fetch('/api/analyze', { method: 'POST', body })
-      const payload = await response.json().catch(() => ({}))
+      let response
+      try {
+        response = await fetch(analysisApiUrl, { method: 'POST', body })
+      } catch {
+        throw new Error('Could not connect to the analysis server. Check your connection and try again.')
+      }
+
+      let payload
+      try {
+        payload = await response.json()
+      } catch {
+        const statusMessage = ` (HTTP ${response.status})`
+        throw new Error(response.ok
+          ? 'The analysis server returned an unreadable response. Please try again.'
+          : `Screenshot analysis failed${statusMessage}; the server returned an unreadable response.`)
+      }
+
       if (!response.ok) throw new Error(payload.error?.message || `Screenshot analysis failed (HTTP ${response.status}).`)
+      if (!Array.isArray(payload.results)) throw new Error('The analysis server response did not include screenshot results. Please try again.')
       onAnalysisChange(Array.isArray(payload.results) ? payload.results : [])
     } catch (requestError) {
       setError(requestError.message || 'Could not reach the analysis server. Check that it is running and try again.')
